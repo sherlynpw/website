@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }} | {{ site.title }}{% endblock %}
+
+{% block content %}
+<div class="snippets-page">
+    <h1>{{ page.title }}</h1>
+
+    {% if page.data.galleries %}
+    {% for gallery in page.data.galleries %}
+    <section class="gallery">
+        <div class="gallery-header">
+            <h2>{{ gallery.title }}</h2>
+            {% if gallery.date_formatted %}
+            <span class="gallery-date">{{ gallery.date_formatted }}</span>
+            {% endif %}
+        </div>
+        <div class="gallery-grid">
+            {% for image in gallery.images %}
+            <figure class="gallery-item">
+                <a href="{{ image.src }}" class="gallery-link" data-lightbox>
+                    <img src="{{ image.src | replace(from='.jpg', to='.webp') | replace(from='.jpeg', to='.webp') | replace(from='.png', to='.webp') }}" alt="{{ image.alt }}" loading="lazy" />
+                </a>
+                {% if image.title %}
+                <figcaption>{{ image.title }}</figcaption>
+                {% endif %}
+            </figure>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+    {% else %}
+    <p class="empty-state">Coming soon!</p>
+    {% endif %}
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+    <button class="lightbox-close" aria-label="Close">&times;</button>
+    <img class="lightbox-img" src="" alt="" />
+    <div class="lightbox-caption"></div>
+</div>
+
+<script>
+(function() {
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = lightbox.querySelector('.lightbox-img');
+    const lightboxCaption = lightbox.querySelector('.lightbox-caption');
+    const closeBtn = lightbox.querySelector('.lightbox-close');
+
+    document.querySelectorAll('[data-lightbox]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const href = link.getAttribute('href');
+            const caption = link.closest('.gallery-item').querySelector('figcaption');
+            lightboxImg.src = href;
+            lightboxImg.alt = link.querySelector('img').alt;
+            lightboxCaption.textContent = caption ? caption.textContent : '';
+            lightbox.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+    });
+
+    function closeLightbox() {
+        lightbox.classList.remove('active');
+        document.body.style.overflow = '';
+        lightboxImg.src = '';
+    }
+
+    closeBtn.addEventListener('click', closeLightbox);
+    lightbox.addEventListener('click', (e) => {
+        if (e.target === lightbox) closeLightbox();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && lightbox.classList.contains('active')) {
+            closeLightbox();
+        }
+    });
+})();
+</script>
+{% endblock %}

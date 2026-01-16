@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ site.title }}{% endblock %}</title>
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme') || 'auto';
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
+    <link rel="stylesheet" href="/static/lexend.css">
+    <link rel="stylesheet" href="/static/phosphor.css">
+    <link rel="stylesheet" href="/static/main.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-name">{{ site.author }}</span>
+                <button class="theme-toggle" title="Toggle theme">
+                    <i class="ph ph-sun" data-theme="light"></i>
+                    <i class="ph ph-moon" data-theme="dark"></i>
+                    <i class="ph ph-monitor" data-theme="auto"></i>
+                </button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <li><a href="/"><span class="nav-icon"><i class="ph ph-house"></i><i class="ph-fill ph-house"></i></span> Home <span class="nav-shortcut">1</span></a></li>
+                    <li><a href="/news"><span class="nav-icon"><i class="ph ph-newspaper"></i><i class="ph-fill ph-newspaper"></i></span> News <span class="nav-shortcut">2</span></a></li>
+                    <li><a href="/snippets"><span class="nav-icon"><i class="ph ph-camera"></i><i class="ph-fill ph-camera"></i></span> <span class="nav-label"><span class="nav-label-full">Life </span>Snippets</span> <span class="nav-shortcut">3</span></a></li>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Resources</div>
+                    <li><a href="/static/cv.pdf"><span class="nav-icon"><i class="ph ph-file-text"></i><i class="ph-fill ph-file-text"></i></span> CV <span class="nav-shortcut">4</span></a></li>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Stay in touch</div>
+                    <li><a href="/contact"><span class="nav-icon"><i class="ph ph-envelope"></i><i class="ph-fill ph-envelope"></i></span> Contact <span class="nav-shortcut">5</span></a></li>
+                </div>
+            </nav>
+
+        </aside>
+
+        <main class="main-content">
+            <div class="content-wrapper">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+<script>
+// Theme toggle
+(function() {
+    const toggle = document.querySelector('.theme-toggle');
+    const icons = toggle.querySelectorAll('i');
+    const themes = ['auto', 'light', 'dark'];
+    let currentTheme = localStorage.getItem('theme') || 'auto';
+
+    function setActiveIcon(theme) {
+        icons.forEach(icon => {
+            icon.classList.toggle('active', icon.dataset.theme === theme);
+        });
+    }
+
+    setActiveIcon(currentTheme);
+
+    toggle.addEventListener('click', () => {
+        const currentIndex = themes.indexOf(currentTheme);
+        currentTheme = themes[(currentIndex + 1) % themes.length];
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        localStorage.setItem('theme', currentTheme);
+        setActiveIcon(currentTheme);
+    });
+})();
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    // Ignore if typing in an input/textarea
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    const shortcuts = {
+        '1': '/',
+        '2': '/news/',
+        '3': '/snippets/',
+        '4': '/static/cv.pdf',
+        '5': '/contact/'
+    };
+
+    if (shortcuts[e.key]) {
+        // Find the link with matching shortcut
+        const links = document.querySelectorAll('.sidebar-nav a');
+        let targetLink = null;
+
+        links.forEach(link => {
+            const shortcut = link.querySelector('.nav-shortcut');
+            if (shortcut && shortcut.textContent === e.key) {
+                targetLink = link;
+            }
+        });
+
+        if (targetLink) {
+            targetLink.classList.add('shortcut-active');
+            setTimeout(() => {
+                window.location.href = shortcuts[e.key];
+            }, 150);
+        } else {
+            window.location.href = shortcuts[e.key];
+        }
+    }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+# Build output
+dist/
+
+# Generated types
+.types/
+
+# Cache
+.rs-web-cache/
+
+# Nix/direnv
+.direnv/
+result
+.pre-commit-config.yaml
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
