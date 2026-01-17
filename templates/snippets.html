@@ -22,7 +22,7 @@
                     <img src="{{ image.src | replace(from='.jpg', to='.webp') | replace(from='.jpeg', to='.webp') | replace(from='.png', to='.webp') }}" alt="{{ image.alt }}" loading="lazy" />
                 </a>
                 {% if image.title %}
-                <figcaption>{{ image.title }}</figcaption>
+                <figcaption>{{ image.title | safe }}</figcaption>
                 {% endif %}
             </figure>
             {% endfor %}
