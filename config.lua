@@ -196,7 +196,22 @@ return {
       rs.async.write_file(ctx.output_dir .. '/CNAME', 'sherlyn.pw')
 
       -- Process snippet images (convert to webp + copy originals)
-      local images = rs.glob 'site/snippets/**/*.jpg' or {}
+      -- local images = rs.glob 'site/snippets/**/*.jpg' or {}
+      local function collect_globs(...)
+        local out = {}
+        for _, pattern in ipairs({...}) do
+          local g = rs.glob(pattern) or {}
+          for _, v in ipairs(g) do table.insert(out, v) end
+        end
+        return out
+      end
+
+      local images = collect_globs(
+        'site/snippets/**/*.jpg',
+        'site/snippets/**/*.jpeg',
+        'site/snippets/**/*.JPG',
+        'site/snippets/**/*.JPEG'
+      )
       rs.print('Found ' .. #images .. ' snippet images')
       for _, img in ipairs(images) do
         rs.print('Processing: ' .. tostring(img.path))
