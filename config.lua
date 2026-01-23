@@ -3,22 +3,35 @@ local rs = require 'rs-web'
 local highlight_names = { 'Sherlyn P. Wijaya' }
 local highlight_class = 'me'
 
-local function highlight_transform(event, ctx)
-  if event.type == 'text' and not ctx.in_heading then
-    local content = event.content
-    local modified = false
-    for _, name in ipairs(highlight_names) do
-      if string.find(content, name, 1, true) then
-        content = string.gsub(content, name, '<span class="' .. highlight_class .. '">%0</span>')
-        modified = true
+local function highlight_plugin()
+  return function(ast)
+    local in_heading = false
+    local new_ast = {}
+
+    for _, event in ipairs(ast) do
+      local new_event = event
+
+      if event.type == 'start' and event.tag == 'heading' then
+        in_heading = true
+      elseif event.type == 'end' and event.tag == 'heading' then
+        in_heading = false
+      elseif event.type == 'text' and not in_heading then
+        local content = event.content
+        local modified = false
+        for _, name in ipairs(highlight_names) do
+          if string.find(content, name, 1, true) then
+            content = string.gsub(content, name, '<span class="' .. highlight_class .. '">%0</span>')
+            modified = true
+          end
+        end
+        if modified then new_event = { type = 'html', content = content } end
       end
+
+      table.insert(new_ast, new_event)
     end
-    if modified then
-      event.type = 'html'
-      event.content = content
-    end
+
+    return new_ast
   end
-  return event
 end
 
 local month_names = {
@@ -72,7 +85,7 @@ local function parse_snippets(content)
     for alt, path, img_title in section:gmatch '!%[([^%]]*)%]%(([^%s"]+)%s*"([^"]*)"%)' do
       local rendered_title = img_title
       if img_title and img_title ~= '' then
-        rendered_title = rs.render_markdown(img_title)
+        rendered_title = rs.markdown.render(img_title)
         rendered_title = rendered_title:gsub('^%s*<p>(.+)</p>%s*$', '%1')
       end
       table.insert(gallery.images, {
@@ -100,7 +113,7 @@ local function parse_news(content)
     table.insert(news, {
       date_raw = date_str,
       date_formatted = date_formatted,
-      content = rs.render_markdown(entry_content),
+      content = rs.markdown.render(entry_content),
     })
   end
   return news
@@ -146,10 +159,10 @@ local function process_phosphor_downloads(results, task_info, output_dir)
         css = css:gsub('url%("%./' .. variant.pattern .. '%.ttf"%)', 'url("/fonts/' .. variant.font_name .. '.ttf")')
         css = css:gsub('url%("%./' .. variant.pattern .. '%.svg#.-"%)', 'url("/fonts/' .. variant.font_name .. '.svg")')
         all_css = all_css .. css .. '\n'
-        rs.print('Fetched Phosphor ' .. variant.name .. ' CSS')
+        rs.log.print('Fetched Phosphor ' .. variant.name .. ' CSS')
       elseif info.type == 'font' then
         table.insert(write_tasks, rs.async.write(output_dir .. '/fonts/' .. info.name, resp.body))
-        rs.print('Fetched ' .. info.name)
+        rs.log.print('Fetched ' .. info.name)
       end
     end
   end
@@ -163,7 +176,7 @@ return {
   site = {
     title = 'Sherlyn P. Wijaya',
     description = 'Personal website of Sherlyn P. Wijaya',
-    base_url = rs.env 'SITE_BASE_URL' or 'http://localhost:3000',
+    base_url = rs.env.get 'SITE_BASE_URL' or 'http://localhost:3000',
     author = 'SPW',
   },
 
@@ -174,7 +187,7 @@ return {
         rs.async.create_dir(ctx.output_dir .. '/static'),
       }
 
-      local lexend_task = rs.download_google_font('Lexend', {
+      local lexend_task = rs.fonts.download_google_font('Lexend', {
         fonts_dir = ctx.output_dir .. '/fonts',
         css_path = ctx.output_dir .. '/static/lexend.css',
         css_prefix = '/fonts',
@@ -200,16 +213,16 @@ return {
       rs.async.await_all(write_tasks)
 
       rs.async.await_all {
-        rs.build_css('styles/*.css', ctx.output_dir .. '/static/main.css', { minify = true }),
+        rs.css.concat('styles/*.css', ctx.output_dir .. '/static/main.css', { minify = true }),
         rs.async.copy_file('static/avatar.jpg', ctx.output_dir .. '/static/avatar.jpg'),
         rs.async.copy_file('static/cv.pdf', ctx.output_dir .. '/static/cv.pdf'),
       }
-      rs.image_convert('static/avatar.jpg', ctx.output_dir .. '/static/avatar.webp', { quality = 85 })
+      rs.image.convert('static/avatar.jpg', ctx.output_dir .. '/static/avatar.webp', { quality = 85 })
 
       local function collect_globs(...)
         local out = {}
         for _, pattern in ipairs { ... } do
-          local g = rs.glob(pattern) or {}
+          local g = rs.fs.glob(pattern) or {}
           for _, v in ipairs(g) do
             table.insert(out, v)
           end
@@ -218,7 +231,7 @@ return {
       end
 
       local images = collect_globs('site/snippets/**/*.jpg', 'site/snippets/**/*.jpeg', 'site/snippets/**/*.JPG', 'site/snippets/**/*.JPEG')
-      rs.print('Found ' .. #images .. ' snippet images')
+      rs.log.print('Found ' .. #images .. ' snippet images')
 
       local dirs = {}
       local copy_sources = {}
@@ -241,26 +254,28 @@ return {
         end
       end
 
-      rs.parallel.create_dirs(dirs)
-      rs.print('Copying ' .. #copy_sources .. ' images...')
-      rs.parallel.copy_files(copy_sources, copy_dests)
-      rs.print('Converting ' .. #convert_sources .. ' images to webp...')
-      rs.parallel.image_convert(convert_sources, convert_dests, { quality = 85 })
+      rs.fs.par.create_dirs(dirs)
+      rs.log.print('Copying ' .. #copy_sources .. ' images...')
+      rs.fs.par.copy(copy_sources, copy_dests)
+      rs.log.print('Converting ' .. #convert_sources .. ' images to webp...')
+      rs.image.par.convert(convert_sources, convert_dests, { quality = 85 })
     end,
   },
 
   pages = function(ctx)
-    local index = rs.read_frontmatter 'site/index.md'
-    local news = rs.read_frontmatter 'site/news.md'
-    local snippets = rs.read_frontmatter 'site/snippets.md'
-    local contact = rs.read_frontmatter 'site/contact.md'
+    local index = rs.data.load_frontmatter 'site/index.md'
+    local news = rs.data.load_frontmatter 'site/news.md'
+    local snippets = rs.data.load_frontmatter 'site/snippets.md'
+    local contact = rs.data.load_frontmatter 'site/contact.md'
 
     return {
       {
         path = '/',
         template = 'page.html',
         title = index.title,
-        content = rs.render_markdown(index.content, highlight_transform),
+        content = rs.markdown.render(index.content, {
+          plugins = rs.markdown.plugins(rs.markdown.plugins.default(), highlight_plugin()),
+        }),
       },
       {
         path = '/news/',
@@ -282,7 +297,7 @@ return {
         path = '/contact/',
         template = 'page.html',
         title = contact.title,
-        content = rs.render_markdown(contact.content),
+        content = rs.markdown.render(contact.content),
       },
     }
   end,
